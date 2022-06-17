@@ -1,0 +1,10 @@
+bs4
+facebook-sdk
+Flask
+pyparsing
+PyNaCl
+youtube-dl
+python-dateutil
+psutil
+translate
+matplotlib

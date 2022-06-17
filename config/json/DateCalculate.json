@@ -1,0 +1,9 @@
+{
+    "channel_id": {
+        "id": "channel_id",
+        "year": "*",
+        "month": "*",
+        "day": "*",
+        "name": "SET_NAME"
+    }
+}

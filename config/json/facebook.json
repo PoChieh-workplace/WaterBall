@@ -1,0 +1,13 @@
+{
+    "whsh": {
+        "url": "/YourID?fields=posts.limit(100)",
+        "token": "Token",
+        "nowid": "",
+        "id": "none"
+    },
+    "sendchannel": {
+        "whsh": [
+            "channel_id"
+        ]
+    }
+}
