@@ -1,10 +1,9 @@
 
-
-
 import asyncio
 from datetime import datetime
+import io
 from typing import List
-from discord import Client, Embed, Message,ButtonStyle,Interaction, SelectOption, TextStyle,User
+from discord import Client, Embed, File, Message,ButtonStyle,Interaction, SelectOption, TextStyle,User
 from discord.ui import View,Button,button,Modal,TextInput,select,Select
 from bin.embed import getembed
 from config.color import LIGHT_BLUE, RED
@@ -18,7 +17,8 @@ class SituationPuzzle:
             self.author = author
             self.ask = ask
             self.answer = answer
-
+            self.time = datetime.now().strftime("%H:%M")
+            self.logtime = datetime.now().strftime("%H:%M:%S")
     def __init__(self,message:Message,client:Client,author:User) -> None:
         self.page = 1
         self.msg = message
@@ -32,13 +32,13 @@ class SituationPuzzle:
 
     def to_embed(self) -> Embed:
         t = datetime.now().strftime("%H:%M:%S")
-        if self.asks!=[]:asks = f"{BLUE_STAR} **{self.asks[0].ask}** - 由 {self.asks[0].author.mention} 提問\n\n"
+        if self.asks!=[]:asks = f"{BLUE_STAR} 即將回答： 【 **{self.asks[0].ask}** 】\n由 {self.asks[0].author.mention} 提問 `{self.asks[0].time}`\n\n"
         else:asks = ""
-        asks += "\n\n".join([f"{PINK_STAR} **{u.ask}** - 由 {u.author.mention} 提問" for u in self.asks[1:] if isinstance(u,self.option)])
-        answers = "\n\n".join([f"{WHITE_STAR} **{u.ask}** | {u.answer}" for u in self.answers[(self.page-1)*8:(self.page*8)] if isinstance(u,self.option)])
+        asks += "\n\n".join([f"{PINK_STAR} 【 **{u.ask}** 】\n由 {u.author.mention} 提問 `{u.time}`" for u in self.asks[1:] if isinstance(u,self.option)])
+        answers = "\n\n".join([f"{WHITE_STAR}【 **{u.ask}** 】| {u.answer} `{u.time}`" for u in self.answers[(self.page-1)*8:(self.page*8)] if isinstance(u,self.option)])
         if asks=="":asks = "空"
         if answers=="":answers = "空"
-        embed = getembed("🥣 | 海龜湯系統 SituationPuzzle",f"由 {self.author.mention} 發起,\n時間：{t}，頁數：{self.page}/{int((len(self.answers)-1)/8)+1}",LIGHT_BLUE)
+        embed = getembed("🥣 | 海龜湯系統 SituationPuzzle",f"由 {self.author.mention} 發起,\n\n時間：{t}，頁數：{self.page}/{int((len(self.answers)-1)/8)+1}",LIGHT_BLUE)
         embed.add_field(name="🍡說明", value=f"{self.description}", inline=False)
         embed.add_field(name="目前提問", value=asks, inline=False)
         embed.add_field(name="已有線索", value=answers, inline=False)
@@ -80,6 +80,24 @@ class main_respond_and_answer(View):
         super().__init__(timeout=0)
         self.main = main
 
+    async def send_log(self,interaction:Interaction,filename:str = 'WaterBall-SituationPuzzle'):
+        time = datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
+        ask = "\n".join([f"[{u.logtime}] - {u.author.name} 提問 【 {u.ask} 】" for u in self.main.asks if isinstance(u,self.main.option)])
+        answer = "\n".join([f"[{u.logtime}] - {u.author.name} 提問 【 {u.ask} 】，回答為 {u.answer}" for u in self.main.answers if isinstance(u,self.main.option)])
+        txt = "\n\n".join([
+            f"🥣 | 海龜湯系統日誌 SituationPuzzle Log - Code by 老乾捷水球",
+            f"┌ 遊戲發起者：{self.main.author.name}\n├ 群組：{self.main.msg.guild.name} - {self.main.msg.channel.name}\n└ 資料請求時間：{time}",
+            f"🍡題目說明：\n{self.main.description}",
+            f"待回答問題：\n{ask}",
+            f"已知線索：\n{answer}"
+        ])
+        buf = io.BytesIO(bytes(txt, 'utf-8'))
+        f = File(buf, filename=f'{filename}.txt')
+        await interaction.response.send_message(
+            content=f"{interaction.user.name}，已傳送遊戲日誌",
+            file = f
+        )
+
 
     async def respond_ask(self,interaction:Interaction,emoji):
         if interaction.user != self.main.author:
@@ -88,7 +106,7 @@ class main_respond_and_answer(View):
             return await interaction.response.send_message(ephemeral=True,embed = getembed(f"{BACK} | 似乎還沒有人提出問題","",RED))
         else:
             self.main.asks[0].answer = emoji
-            self.main.answers.append(self.main.asks[0])
+            self.main.answers.insert(0,self.main.asks[0])
             del self.main.asks[0]
             return await interaction.response.edit_message(embed = self.main.to_embed())
 
@@ -97,35 +115,45 @@ class main_respond_and_answer(View):
     async def yes_callback(self, interaction: Interaction,button:Button):
         return await self.respond_ask(interaction,button.emoji)
 
+    @button(emoji="❔",label="無關",row=1,custom_id="nothing",style=ButtonStyle.gray)
+    async def nothing_callback(self, interaction: Interaction,button:Button):
+        return await self.respond_ask(interaction,button.emoji)
 
     @button(emoji="👎🏻",label="否",row=1,custom_id="no",style=ButtonStyle.red)
     async def no_callback(self, interaction: Interaction,button:Button):
         return await self.respond_ask(interaction,button.emoji)
 
-    @button(emoji="❔",label="無關",row=1,custom_id="nothing",style=ButtonStyle.gray)
-    async def nothing_callback(self, interaction: Interaction,button:Button):
-        return await self.respond_ask(interaction,button.emoji)
 
-    @button(emoji="◀",label="上一頁",row=2,custom_id="last",style=ButtonStyle.blurple)
+    @button(emoji="◀",label="前",row=2,custom_id="last",style=ButtonStyle.blurple)
     async def last_callback(self, interaction: Interaction,button:Button):
-        if self.main.page + 1 > int((len(self.main.answers)-1)/8)+1:self.main.page = 1
-        else:self.main.page+=1
-        return await interaction.response.edit_message(embed=self.main.to_embed())
-
-
-    @button(emoji="▶",label="下一頁",row=2,custom_id="next",style=ButtonStyle.blurple)
-    async def next_callback(self, interaction: Interaction,button:Button):
         if self.main.page - 1 <= 0:self.main.page = int((len(self.main.answers)-1)/8)+1
         else:self.main.page-=1
         return await interaction.response.edit_message(embed=self.main.to_embed())
+
+
+    @button(emoji="💬",label="回答",row=2,custom_id="reply",style=ButtonStyle.gray)
+    async def respond_callback(self, interaction: Interaction,button:Button):
+        if interaction.user == self.main.author:
+                return await interaction.response.send_message(ephemeral=True,embed = getembed(f"{BACK} | 發起者不可提問喔","",RED))
+        elif len(self.main.asks)>=8:
+            return await interaction.response.send_message(ephemeral=True,embed = getembed(f"{BACK} |  資料塞車拉！","請等待版主回答後再試一次",RED))
+        return await interaction.response.send_modal(ask_modal(self.main))
+
+
+    @button(emoji="▶",label="後",row=2,custom_id="next",style=ButtonStyle.blurple)
+    async def next_callback(self, interaction: Interaction,button:Button):
+        if self.main.page + 1 > int((len(self.main.answers)-1)/8)+1:self.main.page = 1
+        else:self.main.page+=1
+        return await interaction.response.edit_message(embed=self.main.to_embed())
+    
 
 
 
     @select(
         placeholder="🎈其他選項",
         options=[
-            SelectOption(label="回答",value = "respond",description="提出詢問 | 版主無法使用",emoji="💬"),
-            SelectOption(label="刷新訊息",value = "resend",description="更新資料並移動至最新",emoji="🔄"),
+            SelectOption(label="刷新訊息",value = "resend",description="更新資料並移動至最新訊息",emoji="🔄"),
+            SelectOption(label="輸出日誌",value = "send_txt",description="將目前狀況轉成文檔傳送",emoji="📜"),
             SelectOption(label="提示",value = "remind",description="為遊戲給予提示 | 僅限版主",emoji="💡"),
             SelectOption(label="結束訊息",value = "disconnect",description="結束遊戲 | 僅限版主",emoji=f"{BACK}")
         ],
@@ -133,13 +161,8 @@ class main_respond_and_answer(View):
     )
     async def select_callback(self, interaction: Interaction,select:Select):
         a = select.values[0]
-        if a=="respond":
-            if interaction.user == self.main.author:
-                return await interaction.response.send_message(ephemeral=True,embed = getembed(f"{BACK} | 發起者不可提問喔","",RED))
-            
-            elif len(self.main.asks)>=8:
-                return await interaction.response.send_message(ephemeral=True,embed = getembed(f"{BACK} |  資料塞車拉！","請等待版主回答後再試一次",RED))
-            return await interaction.response.send_modal(ask_modal(self.main))
+        if a=="send_txt":
+            return await self.send_log(interaction)
         elif a=="resend":
             await interaction.message.delete()
             self.main.msg = await interaction.channel.send(embed=self.main.to_embed(),view = self)
@@ -154,9 +177,10 @@ class main_respond_and_answer(View):
             self.main.description += "\n(遊戲已經結束)"
             for i in self.children:
                 if i.custom_id not in ['last','next']:i.disabled = True
-            await interaction.response.edit_message(embed=self.main.to_embed(),view=self)
+            await self.send_log(interaction)
+            await interaction.message.edit(embed=self.main.to_embed(),view=self)
             await asyncio.sleep(300)
-            return await self.main.msg.edit(embed=self.main.to_embed(),view=None)
+            return await self.main.msg.edit(view=None)
 
 
 #學生提問表單
@@ -179,5 +203,5 @@ class remind_modal(Modal):
         self.main = main
     description = TextInput(label="填入",style=TextStyle.short,placeholder="主角是水球喔！",max_length=50,min_length=3,required=True)
     async def on_submit(self, interaction: Interaction) -> None:
-        self.main.answers.append(self.main.option(interaction.user,self.description.value,"💡"))
+        self.main.answers.insert(0,self.main.option(interaction.user,self.description.value,"💡"))
         await interaction.response.edit_message(embed = self.main.to_embed())

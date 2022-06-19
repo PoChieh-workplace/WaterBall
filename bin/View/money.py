@@ -12,4 +12,4 @@ class money(View):
         pass
     @button(emoji = f"{RED_HEART}",label="贈與伴侶",style=ButtonStyle.blurple,disabled=True,row=1)
     async def give_mate_button_callback(self,interaction:Interaction, button:Button):
-        pass
+        await interaction.response.edit_message()

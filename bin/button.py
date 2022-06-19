@@ -1,7 +1,7 @@
 import discord
 from discord import ui
 from bin.modal.user import edit_member_introduce_modal
-from config.emoji import BACK, LIGHT_BLUE_CHECK, PENCIL, STOCK
+from config.emoji import BACK, LIGHT_BLUE_CHECK, PENCIL
 from config.zh_tw import CONCIAL, WHSH_PART_GET_SUCCESS
 
 

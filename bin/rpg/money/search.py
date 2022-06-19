@@ -3,7 +3,6 @@ from discord.ext.commands import Context
 from bin.embed import getembed
 from bin.rpg.rpgsql import get_money_info, search_stock_from_name
 from bin.View.stock import stock
-from bin.View.money import money
 from config.emoji import BACK, STOCK
 from config.zh_tw import MONEY_PAPER
 from config.color import ORANGE, RED

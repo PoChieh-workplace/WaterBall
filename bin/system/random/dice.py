@@ -6,8 +6,10 @@ from config.color import GREEN
 
 class MAX_SMALLER_THAN_MIN(commands.CommandError):
     """最大值不可小於最小值"""
+
 class NUMBER_ERROR(commands.CommandError):
     """資料型態錯誤，必須為數字"""
+    
 class FLOAT_ERROR(commands.CommandError):
     """小數最多只能10位數"""
 
